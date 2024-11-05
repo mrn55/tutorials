@@ -1,1 +1,6 @@
 *.env
+*.terraform
+NOTES.md
+ip_addresses.txt
+hosts
+*.tfstate*

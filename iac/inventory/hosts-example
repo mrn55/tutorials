@@ -1,0 +1,11 @@
+[master]
+<control-plane-ip> ansible_user=ec2-user
+
+[workers]
+<worker-node-ip-1> ansible_user=ec2-user
+<worker-node-ip-2> ansible_user=ec2-user
+<worker-node-ip-3> ansible_user=ec2-user
+
+[k8s:children]
+master
+workers

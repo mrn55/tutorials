@@ -1,0 +1,63 @@
+---
+- hosts: all
+  become: yes
+  tasks:
+    - name: Install Docker
+      yum:
+        name: docker
+        state: present
+
+    - name: Enable and start Docker
+      systemd:
+        name: docker
+        state: started
+        enabled: true
+
+    - name: Add Kubernetes repo
+      yum_repository:
+        name: kubernetes
+        description: Kubernetes repository
+        baseurl: https://packages.cloud.google.com/yum/repos/kubernetes-el7-x86_64
+        gpgcheck: no
+        enabled: yes
+
+    - name: Install kubelet, kubeadm, and kubectl
+      yum:
+        name:
+          - kubelet
+          - kubeadm
+          - kubectl
+        state: present
+
+    - name: Enable kubelet
+      systemd:
+        name: kubelet
+        enabled: true
+
+- hosts: master
+  become: yes
+  tasks:
+    - name: Initialize Kubernetes on control plane
+      command: kubeadm init --pod-network-cidr=10.244.0.0/16
+      register: kubeadm_init
+
+    - name: Set up kubeconfig for root
+      command: "{{ item }}"
+      loop:
+        - mkdir -p /root/.kube
+        - cp -i /etc/kubernetes/admin.conf /root/.kube/config
+        - chown root:root /root/.kube/config
+
+    - name: Install Calico network plugin
+      command: kubectl apply -f https://docs.projectcalico.org/v3.14/manifests/calico.yaml
+
+    - name: Retrieve kubeadm join command
+      debug:
+        msg: "{{ kubeadm_init.stdout_lines | select('search', 'kubeadm join') | list }}"
+      register: join_command
+
+- hosts: workers
+  become: yes
+  tasks:
+    - name: Join the Kubernetes cluster
+      command: "{{ hostvars['master'].join_command }}"
